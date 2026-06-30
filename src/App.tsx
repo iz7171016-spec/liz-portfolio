@@ -389,9 +389,10 @@ export function App() {
                 {isMusicOn ? <Music2 size={16} aria-hidden="true" /> : <VolumeX size={16} aria-hidden="true" />}
               </button>
             </div>
-            <p className="min-w-0 flex-1 text-center text-sm text-white/86 md:text-base">
-              Hi ! 我是Liz~，欢迎来找我聊天~
-            </p>
+            <div className="min-w-0 flex-1 text-center text-white/86">
+              <p className="text-sm leading-tight md:text-base">Hi ! 我是Liz~，欢迎来找我聊天~</p>
+              <p className="mt-1 text-[11px] leading-tight text-white/60 md:text-xs">💡站内按钮随意探索~</p>
+            </div>
             <button
               type="button"
               onClick={() => setIsContactOpen((value) => !value)}
