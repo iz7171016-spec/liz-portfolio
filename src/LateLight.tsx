@@ -235,7 +235,7 @@ export function LateLight({ onBack }: { onBack: () => void }) {
     <section className="relative min-h-[calc(100vh-7rem)] overflow-hidden rounded-[2rem] border border-white/10 bg-[#071019] text-stone-100 shadow-2xl shadow-black/40">
       <div
         className="absolute inset-0 bg-cover bg-center"
-        style={{ backgroundImage: "url('/images/latelight-rainy-library.png')" }}
+        style={{ backgroundImage: "url('/images/latelight-rainy-library.webp')" }}
       />
       <div className="absolute inset-0 bg-[linear-gradient(90deg,rgba(3,7,11,0.78),rgba(7,16,25,0.28)_42%,rgba(3,7,11,0.78))]" />
       <div className="relative z-10 grid min-h-[calc(100vh-7rem)] gap-5 p-4 md:p-6 xl:grid-cols-[360px_minmax(420px,1fr)_320px]">
@@ -569,7 +569,7 @@ export function LateLight({ onBack }: { onBack: () => void }) {
               exit={{ opacity: 0, y: 24, scale: 0.96 }}
               className="relative w-full max-w-md overflow-hidden rounded-[28px] border border-amber-100/20 bg-[#14110d] p-7 shadow-2xl"
             >
-              <div className="absolute inset-0 bg-[url('/images/latelight-rainy-library.png')] bg-cover bg-center opacity-30" />
+              <div className="absolute inset-0 bg-[url('/images/latelight-rainy-library.webp')] bg-cover bg-center opacity-30" />
               <div className="absolute inset-0 bg-gradient-to-b from-black/20 via-[#14110d]/72 to-[#14110d]" />
               <div className="relative">
                 <div className="flex items-center justify-between">

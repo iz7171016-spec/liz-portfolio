@@ -110,12 +110,12 @@ const interestCards = [
 ];
 
 const aiPortfolioImages = [
-  assetSrc("/portfolio/p1.png"),
-  assetSrc("/portfolio/p2.png"),
-  assetSrc("/portfolio/p3.png"),
-  assetSrc("/portfolio/p4.png"),
-  assetSrc("/portfolio/p5.png"),
-  assetSrc("/portfolio/p6.png"),
+  assetSrc("/portfolio/p1.webp"),
+  assetSrc("/portfolio/p2.webp"),
+  assetSrc("/portfolio/p3.webp"),
+  assetSrc("/portfolio/p4.webp"),
+  assetSrc("/portfolio/p5.webp"),
+  assetSrc("/portfolio/p6.webp"),
 ];
 
 const detailPages = {
@@ -124,7 +124,7 @@ const detailPages = {
     title: "自我介绍",
     back: "#who",
     text: "你好~我叫王琪璎，也可以叫我 Liz。",
-    image: assetSrc("/images/intro-liz.png"),
+    image: assetSrc("/images/intro-liz.webp"),
     paragraphs: introParagraphs,
   },
   interests: {
@@ -454,7 +454,7 @@ export function App() {
             />
             <div className="liquid-glass relative z-10 aspect-[4/5] w-full max-w-sm rounded-3xl p-3">
               <img
-                src={assetSrc("/images/liz-photo.jpg")}
+                src={assetSrc("/images/liz-photo.webp")}
                 alt="Liz"
                 className="h-full w-full rounded-[1.25rem] object-cover"
                 onError={(event) => {
