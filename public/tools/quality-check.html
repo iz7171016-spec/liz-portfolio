@@ -1,0 +1,674 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>多模态评测标注数据质检工具 V1（本地版）</title>
+<!--
+  ============================================================
+  多模态多场景评测标注数据质检工具  V1  本地单文件版
+  ------------------------------------------------------------
+  数据安全说明：
+    本工具是纯前端单文件 HTML，所有数据解析、统计、图表、
+    导出都在你本地浏览器内存中完成，不会上传到任何服务器。
+    页面只从 CDN 加载一个 Excel 解析库（SheetJS），加载的
+    只是“程序代码”，你的表格数据【绝不会】被发送出去。
+    如需完全离线，可参考文件末尾“离线使用”说明。
+  使用方法：
+    1) 直接双击本文件用浏览器打开（推荐 Chrome / Edge）
+    2) 点击“上传飞书导出文件”，选择 .xlsx / .xls / .csv
+    3) 自动解析字段、识别 Badcase、计算指标、生成图表
+    4) 用顶部筛选查看，用底部按钮导出报告/明细
+  ============================================================
+-->
+<!-- 仅用于解析 Excel 的库；CSV 用本地自带解析，不依赖它 -->
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<style>
+  :root{
+    --bg:#f5f6f8; --card:#ffffff; --line:#e6e8eb; --text:#1f2329;
+    --sub:#646a73; --brand:#2b6de8; --brand-d:#1f57c4;
+    --bad:#fde2e2; --bad-line:#f5a3a3; --bad-text:#c0392b;
+    --ok:#e7f6ec; --warn:#fff4e0; --risk:#fde9d9;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;font-family:"Microsoft YaHei","PingFang SC",system-ui,sans-serif;
+       background:var(--bg);color:var(--text);font-size:14px;line-height:1.6}
+  header{background:linear-gradient(90deg,#2b6de8,#5a8df0);color:#fff;padding:18px 24px}
+  header h1{margin:0;font-size:20px}
+  header p{margin:4px 0 0;font-size:13px;opacity:.92}
+  .wrap{max-width:1240px;margin:0 auto;padding:18px 24px 60px}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:10px;
+        padding:18px;margin-bottom:18px}
+  .card h2{margin:0 0 12px;font-size:16px;display:flex;align-items:center;gap:8px}
+  .card h2 small{font-weight:normal;color:var(--sub);font-size:12px}
+  button{cursor:pointer;border:none;border-radius:7px;padding:9px 16px;font-size:13px;
+         background:var(--brand);color:#fff;transition:.15s}
+  button:hover{background:var(--brand-d)}
+  button.ghost{background:#eef1f6;color:var(--text)}
+  button.ghost:hover{background:#e2e7ef}
+  button:disabled{opacity:.45;cursor:not-allowed}
+  .btn-row{display:flex;flex-wrap:wrap;gap:10px}
+  .hint{color:var(--sub);font-size:12px;margin-top:8px}
+  /* 上传区 */
+  .drop{border:2px dashed var(--brand);border-radius:10px;padding:34px;text-align:center;
+        background:#f7faff;cursor:pointer;transition:.15s}
+  .drop:hover{background:#eef4ff}
+  .drop b{color:var(--brand);font-size:15px}
+  /* 指标卡 */
+  .kpis{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:12px}
+  .kpi{background:#fff;border:1px solid var(--line);border-radius:9px;padding:14px}
+  .kpi .v{font-size:24px;font-weight:700}
+  .kpi .l{font-size:12px;color:var(--sub);margin-top:2px}
+  .kpi.bad .v{color:var(--bad-text)}
+  .kpi.brand .v{color:var(--brand)}
+  /* 筛选 */
+  .filters{display:flex;flex-wrap:wrap;gap:10px;align-items:center}
+  .filters select,.filters input{padding:7px 10px;border:1px solid var(--line);
+        border-radius:7px;font-size:13px}
+  .chip{display:inline-flex;align-items:center;gap:6px;background:#eef1f6;border-radius:20px;
+        padding:5px 12px;font-size:12px;cursor:pointer;user-select:none;border:1px solid transparent}
+  .chip.active{background:var(--brand);color:#fff}
+  /* 表格 */
+  .tbl-scroll{overflow:auto;max-height:560px;border:1px solid var(--line);border-radius:8px}
+  table{border-collapse:collapse;width:100%;font-size:12.5px}
+  th,td{border-bottom:1px solid var(--line);padding:7px 9px;text-align:left;
+        white-space:nowrap;max-width:280px;overflow:hidden;text-overflow:ellipsis}
+  th{background:#f0f2f5;position:sticky;top:0;z-index:2;font-weight:600}
+  tr.bad td{background:var(--bad)}
+  tr.bad td:first-child{box-shadow:inset 3px 0 0 var(--bad-text)}
+  td a{color:var(--brand);text-decoration:none}
+  .tag{display:inline-block;padding:1px 7px;border-radius:5px;font-size:11px}
+  .tag.bad{background:var(--bad-line);color:#7a1f1f}
+  .tag.ok{background:#bfe6cb;color:#1d6b34}
+  /* 图表 */
+  .charts{display:grid;grid-template-columns:1fr 1fr;gap:18px}
+  @media(max-width:880px){.charts{grid-template-columns:1fr}}
+  .chart-box{border:1px solid var(--line);border-radius:9px;padding:14px}
+  .chart-box h3{margin:0 0 12px;font-size:13.5px}
+  .bar-row{display:flex;align-items:center;gap:8px;margin:6px 0}
+  .bar-row .name{width:84px;font-size:12px;color:var(--sub);text-align:right;flex:none}
+  .bar-track{flex:1;background:#eef1f6;border-radius:5px;height:18px;overflow:hidden}
+  .bar-fill{height:100%;border-radius:5px;background:var(--brand);
+            display:flex;align-items:center;justify-content:flex-end;color:#fff;
+            font-size:11px;padding-right:6px;min-width:22px}
+  .bar-fill.bad{background:#e25c5c}
+  .bar-fill.ok{background:#3aa863}
+  .donut-wrap{display:flex;align-items:center;gap:18px;flex-wrap:wrap}
+  .legend{font-size:12px}
+  .legend div{display:flex;align-items:center;gap:6px;margin:4px 0}
+  .legend i{width:11px;height:11px;border-radius:3px;display:inline-block}
+  .empty{color:var(--sub);text-align:center;padding:30px;font-size:13px}
+  .insight{background:#f7faff;border-left:3px solid var(--brand);padding:10px 14px;
+           border-radius:6px;margin:8px 0;font-size:13px}
+  .insight b{color:var(--brand-d)}
+  details summary{cursor:pointer;color:var(--brand);font-size:13px}
+  code{background:#eef1f6;padding:1px 5px;border-radius:4px}
+</style>
+</head>
+<body>
+<header>
+  <h1>🛡️ 多模态评测标注数据质检工具 <span style="font-size:13px;opacity:.85">V1 本地版</span></h1>
+  <p>飞书导出 → 自动识别 Badcase → 一致性 IAA 统计 → 图表与报告导出　|　数据仅在本地浏览器处理，不上传</p>
+</header>
+
+<div class="wrap">
+
+  <!-- ① 上传区 -->
+  <div class="card">
+    <h2>① 上传数据 <small>支持飞书导出的 .xlsx / .xls / .csv</small></h2>
+    <div class="drop" id="drop">
+      <b>点击此处选择文件</b>，或把文件拖到这里<br/>
+      <span class="hint">字段名可自动容错识别（如“评测员A打分 / A分 / 打分A / score_a”均可）</span>
+      <input type="file" id="file" accept=".xlsx,.xls,.csv" style="display:none" />
+    </div>
+    <div class="btn-row" style="margin-top:12px">
+      <button class="ghost" id="demoBtn">📋 载入示例数据（先体验效果）</button>
+      <button class="ghost" id="resetBtn">🗑️ 清空重来</button>
+    </div>
+    <div class="hint" id="parseMsg"></div>
+  </div>
+
+  <!-- 主体区，解析后显示 -->
+  <div id="main" style="display:none">
+
+    <!-- ② 字段映射结果 -->
+    <div class="card">
+      <h2>② 字段识别结果 <small>系统自动把你的列名匹配到标准字段</small></h2>
+      <div id="mapBox"></div>
+    </div>
+
+    <!-- ③ 核心指标 -->
+    <div class="card">
+      <h2>③ 核心指标卡片</h2>
+      <div class="kpis" id="kpis"></div>
+    </div>
+
+    <!-- ④ 图表 -->
+    <div class="card">
+      <h2>④ 统计图表</h2>
+      <div class="charts" id="charts"></div>
+    </div>
+
+    <!-- ⑤ 复盘建议 -->
+    <div class="card">
+      <h2>⑤ 可复盘建议 <small>基于数据自动生成</small></h2>
+      <div id="insights"></div>
+    </div>
+
+    <!-- ⑥ 明细 + 筛选 -->
+    <div class="card">
+      <h2>⑥ 数据明细 <small>Badcase 行自动标红</small></h2>
+      <div class="filters" id="filters" style="margin-bottom:12px">
+        <span style="color:var(--sub)">筛选：</span>
+        <span class="chip" data-f="all">全部</span>
+        <span class="chip" data-f="bad">仅 Badcase</span>
+        <span class="chip" data-f="low">仅低分(≤2)</span>
+        <span class="chip" data-f="diff">仅分歧(差≥2)</span>
+        <select id="typeFilter"><option value="">问题类型(全部)</option></select>
+        <input id="kw" placeholder="搜索 query / 备注关键词" style="min-width:200px" />
+        <span class="hint" id="filterCount"></span>
+      </div>
+      <div class="tbl-scroll"><table id="tbl"></table></div>
+    </div>
+
+    <!-- ⑦ 导出 -->
+    <div class="card">
+      <h2>⑦ 导出报告与明细</h2>
+      <div class="btn-row">
+        <button id="expHtml">📄 导出 HTML 报告</button>
+        <button id="expMd" class="ghost">📝 导出 Markdown 报告</button>
+        <button id="expCsvAll" class="ghost">📊 导出全部明细 CSV</button>
+        <button id="expCsvBad" class="ghost">🔴 导出 Badcase 明细 CSV</button>
+      </div>
+      <div class="hint">导出的文件直接保存到你电脑，不经过任何服务器。</div>
+    </div>
+
+  </div><!-- /main -->
+
+  <details style="margin-top:8px">
+    <summary>💡 离线使用 / 数据安全说明</summary>
+    <div class="hint" style="line-height:1.8">
+      本工具仅从 CDN 加载 <code>xlsx.full.min.js</code>（Excel 解析库，属于程序代码）。
+      你的表格数据全程只在浏览器内存中处理，<b>不会发送到任何服务器</b>。<br/>
+      想完全断网使用：把
+      <code>https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js</code>
+      下载为本地文件 <code>xlsx.full.min.js</code>，放到与本 HTML 同目录，再把
+      &lt;script src=...&gt; 改成 <code>src="xlsx.full.min.js"</code> 即可。
+      （只用 CSV 的话，不下载也能离线工作。）
+    </div>
+  </details>
+</div>
+
+<script>
+/* =========================================================================
+   全局数据：rows = 标准化后的样本数组；stats = 统计结果
+   ========================================================================= */
+let RAW = [];        // 原始行（对象数组）
+let ROWS = [];       // 标准化后的样本
+let STATS = null;    // 统计结果
+let FILTER = 'all';  // 当前快捷筛选
+
+/* ---------- 1. 字段别名表：把各种写法映射到标准字段 ---------- */
+const FIELD_ALIASES = {
+  task_id:  ['任务id','任务编号','task_id','taskid','id','编号','序号','case_id'],
+  query:    ['query','问题','提问','输入','prompt','指令内容','用户query'],
+  media:    ['图片','视频','链接','图片链接','视频链接','媒体','url','图片/视频链接','media','附件'],
+  score_a:  ['评测员a打分','评测员a','a打分','a分','打分a','score_a','scorea','评分a','评测a','a评分','员a'],
+  score_b:  ['评测员b打分','评测员b','b打分','b分','打分b','score_b','scoreb','评分b','评测b','b评分','员b'],
+  type:     ['问题类型','类型','category','问题分类','场景','标签','type','问题种类'],
+  remark:   ['备注','说明','remark','note','comment','评语','备注信息','问题描述'],
+  is_bad:   ['是否badcase','是否bad','badcase','是否badcase？','是否问题样本','bad','是否异常'],
+  date:     ['日期','时间','date','提交日期','标注日期','创建时间','日','day']
+};
+
+const TYPE_SET = ['语言','内容','指令','安全'];      // 固定问题类型
+const BAD_KEYWORDS = ['错误','不符合','模糊','异常','缺失','安全','违规','跑题','不一致'];
+
+/* 把任意列名归一化：去空格、转小写、去标点 */
+function norm(s){ return String(s==null?'':s).trim().toLowerCase().replace(/[\s_\-：:（）()【】\/]/g,''); }
+
+/* 根据别名表，为标准字段找到原始列名 */
+function buildFieldMap(headers){
+  const map = {};
+  const used = new Set();
+  for(const std in FIELD_ALIASES){
+    const aliases = FIELD_ALIASES[std].map(norm);
+    let found = '';
+    // 先找完全相等
+    for(const h of headers){
+      if(used.has(h)) continue;
+      if(aliases.includes(norm(h))){ found = h; break; }
+    }
+    // 再找包含关系（容错）
+    if(!found){
+      for(const h of headers){
+        if(used.has(h)) continue;
+        const nh = norm(h);
+        if(aliases.some(a=>nh.includes(a)||a.includes(nh))){ found = h; break; }
+      }
+    }
+    if(found){ map[std]=found; used.add(found); }
+  }
+  return map;
+}
+
+/* ---------- 2. 解析数值打分 ---------- */
+function parseScore(v){
+  if(v==null||v==='') return null;
+  const n = parseFloat(String(v).replace(/[^\d.\-]/g,''));
+  return isNaN(n)?null:n;
+}
+
+/* ---------- 3. 标准化一行 + 判定 Badcase ---------- */
+function normalizeRows(raw, map){
+  return raw.map((r,i)=>{
+    const get = k => map[k]!=null ? r[map[k]] : '';
+    const a = parseScore(get('score_a'));
+    const b = parseScore(get('score_b'));
+    const remark = String(get('remark')||'');
+    const isBadField = String(get('is_bad')||'').trim().toLowerCase();
+
+    // 问题类型归一化：不在固定集合内 → 其他
+    let type = String(get('type')||'').trim();
+    type = TYPE_SET.includes(type) ? type : (type==='' ? '其他' : (TYPE_SET.find(t=>type.includes(t))||'其他'));
+
+    // 平均分 / 分差
+    const avg = (a!=null&&b!=null) ? (a+b)/2 : (a!=null?a:(b!=null?b:null));
+    const diff = (a!=null&&b!=null) ? Math.abs(a-b) : null;
+
+    // === Badcase 判定（满足任一即是）===
+    const reasons = [];
+    if(a!=null && a<=2) reasons.push('A打分≤2');
+    if(b!=null && b<=2) reasons.push('B打分≤2');
+    if(avg!=null && avg<3) reasons.push('平均分<3');
+    if(diff!=null && diff>=2) reasons.push('A/B分差≥2');
+    const hitKw = BAD_KEYWORDS.filter(k=>remark.includes(k));
+    if(hitKw.length) reasons.push('备注含['+hitKw.join('/')+']');
+    if(['是','true','1','y','yes'].includes(isBadField)) reasons.push('标注为Badcase');
+
+    const isBad = reasons.length>0;
+    const isLow = (a!=null&&a<=2)||(b!=null&&b<=2);
+    const isDiff = diff!=null && diff>=2;
+    // 一致：分差≤1（容忍一致）
+    const agree = diff!=null ? diff<=1 : null;
+
+    return {
+      _i:i+1,
+      task_id: get('task_id')||('#'+(i+1)),
+      query: get('query')||'',
+      media: get('media')||'',
+      score_a:a, score_b:b, avg, diff, type, remark,
+      date: String(get('date')||'').trim(),
+      isBad, isLow, isDiff, agree,
+      reasons
+    };
+  });
+}
+
+/* ---------- 4. 计算统计指标 ---------- */
+function computeStats(rows){
+  const n = rows.length;
+  const bad = rows.filter(r=>r.isBad).length;
+  const low = rows.filter(r=>r.isLow).length;
+  const diffN = rows.filter(r=>r.isDiff).length;
+
+  // 平均分（A、B 全部有效打分的均值）
+  const allScores=[]; rows.forEach(r=>{ if(r.score_a!=null)allScores.push(r.score_a); if(r.score_b!=null)allScores.push(r.score_b); });
+  const avgScore = allScores.length ? allScores.reduce((x,y)=>x+y,0)/allScores.length : 0;
+
+  // 容忍一致率（仅统计 A、B 都有打分的样本）
+  const dual = rows.filter(r=>r.agree!=null);
+  const agreeN = dual.filter(r=>r.agree).length;
+  const iaa = dual.length ? agreeN/dual.length : 0;
+
+  // 各问题类型分布（总数 / badcase / 通过率）
+  const byType = {};
+  ['语言','内容','指令','安全','其他'].forEach(t=>byType[t]={total:0,bad:0});
+  rows.forEach(r=>{ if(!byType[r.type])byType[r.type]={total:0,bad:0}; byType[r.type].total++; if(r.isBad)byType[r.type].bad++; });
+
+  // 每日产量（有日期字段才有）
+  const byDate = {};
+  rows.forEach(r=>{ if(r.date){ byDate[r.date]=(byDate[r.date]||0)+1; } });
+  const hasDate = Object.keys(byDate).length>0;
+
+  return {
+    n, bad, low, diffN, avgScore, iaa,
+    badRate: n?bad/n:0, lowRate: n?low/n:0, diffRate: n?diffN/n:0,
+    dualN: dual.length, agreeN,
+    byType, byDate, hasDate
+  };
+}
+
+/* =========================================================================
+   渲染部分
+   ========================================================================= */
+const $ = id=>document.getElementById(id);
+const pct = x=>(x*100).toFixed(1)+'%';
+const esc = s=>String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+
+function renderMap(map, headers){
+  const labels={task_id:'任务ID',query:'Query',media:'图片/视频',score_a:'评测员A打分',
+    score_b:'评测员B打分',type:'问题类型',remark:'备注',is_bad:'是否Badcase',date:'日期'};
+  let h='<table style="width:auto"><tr><th>标准字段</th><th>识别到的列名</th></tr>';
+  for(const k in labels){
+    const ok = map[k];
+    h+=`<tr><td>${labels[k]}</td><td>${ok?'<span class="tag ok">'+esc(ok)+'</span>':'<span class="hint">未识别（将留空）</span>'}</td></tr>`;
+  }
+  h+='</table>';
+  $('mapBox').innerHTML=h;
+}
+
+function renderKpis(s){
+  const cards=[
+    {l:'总样本数',v:s.n,c:'brand'},
+    {l:'Badcase 数量',v:s.bad,c:'bad'},
+    {l:'Badcase 占比',v:pct(s.badRate),c:'bad'},
+    {l:'平均分',v:s.avgScore.toFixed(2),c:''},
+    {l:'低分样本(≤2)占比',v:pct(s.lowRate),c:''},
+    {l:'分歧样本(差≥2)占比',v:pct(s.diffRate),c:''},
+    {l:'容忍一致率 IAA',v:pct(s.iaa),c:'brand'},
+  ];
+  $('kpis').innerHTML = cards.map(c=>`<div class="kpi ${c.c}"><div class="v">${c.v}</div><div class="l">${c.l}</div></div>`).join('');
+}
+
+/* 横向条形图 */
+function barChart(title, data, opt={}){
+  const max = Math.max(1,...data.map(d=>d.v));
+  let rows = data.map(d=>{
+    const w = (d.v/max*100).toFixed(1);
+    const cls = d.cls||'';
+    const label = opt.pct ? pct(d.v) : d.v;
+    return `<div class="bar-row"><div class="name">${esc(d.name)}</div>
+      <div class="bar-track"><div class="bar-fill ${cls}" style="width:${Math.max(w, d.v>0?6:0)}%">${label}</div></div></div>`;
+  }).join('');
+  if(!data.length) rows='<div class="empty">无数据</div>';
+  return `<div class="chart-box"><h3>${title}</h3>${rows}</div>`;
+}
+
+/* 甜甜圈（用 conic-gradient） */
+function donutChart(title, data){
+  const total = data.reduce((a,d)=>a+d.v,0)||1;
+  const colors=['#2b6de8','#e25c5c','#f0a23b','#3aa863','#9b59b6','#888'];
+  let acc=0, seg=[];
+  data.forEach((d,i)=>{ const s=acc/total*360, e=(acc+d.v)/total*360; acc+=d.v;
+    seg.push(`${colors[i%colors.length]} ${s}deg ${e}deg`); });
+  const legend = data.map((d,i)=>`<div><i style="background:${colors[i%colors.length]}"></i>${esc(d.name)}：<b>${d.v}</b>（${pct(d.v/total)}）</div>`).join('');
+  return `<div class="chart-box"><h3>${title}</h3><div class="donut-wrap">
+    <div style="width:120px;height:120px;border-radius:50%;flex:none;background:conic-gradient(${seg.join(',')})"></div>
+    <div class="legend">${legend||'<div class="empty">无数据</div>'}</div></div></div>`;
+}
+
+function renderCharts(s){
+  const types=['语言','内容','指令','安全','其他'];
+  // 图1：各类型 Badcase 分布
+  const c1 = barChart('图1 · 各问题类型 Badcase 数量',
+    types.map(t=>({name:t,v:s.byType[t].bad,cls:'bad'})));
+  // 图2：各类型通过率（1 - bad/total）
+  const c2 = barChart('图2 · 各问题类型通过率',
+    types.map(t=>{ const tt=s.byType[t]; const r=tt.total?1-tt.bad/tt.total:0;
+      return {name:t,v:r,cls:'ok'};}), {pct:true});
+  // 图3：评测员一致率
+  const c3 = donutChart('图3 · 评测员一致性（容忍：分差≤1）',
+    [{name:'一致',v:s.agreeN},{name:'不一致',v:s.dualN-s.agreeN}]);
+  // 图4：低分占比
+  const c4 = donutChart('图4 · 低分样本(≤2)占比',
+    [{name:'低分样本',v:s.low},{name:'正常样本',v:s.n-s.low}]);
+  // 图5：每日产量趋势（有日期才显示）
+  let c5='';
+  if(s.hasDate){
+    const dates=Object.keys(s.byDate).sort();
+    c5 = barChart('图5 · 每日产量趋势', dates.map(d=>({name:d,v:s.byDate[d]})));
+  }else{
+    c5 = `<div class="chart-box"><h3>图5 · 每日产量趋势</h3><div class="empty">未检测到日期字段，已跳过</div></div>`;
+  }
+  $('charts').innerHTML = c1+c2+c3+c4+c5;
+}
+
+function renderInsights(s, rows){
+  const types=['语言','内容','指令','安全','其他'];
+  let out=[];
+  // 哪类问题最多
+  const worst = types.map(t=>({t,bad:s.byType[t].bad,total:s.byType[t].total}))
+                     .filter(x=>x.total>0).sort((a,b)=>b.bad-a.bad)[0];
+  if(worst && worst.bad>0)
+    out.push(`<div class="insight">📌 <b>${worst.t}</b> 类问题 Badcase 最多（${worst.bad} 个 / 共 ${worst.total}，占该类 ${pct(worst.bad/worst.total)}），建议优先复盘该类标注标准。</div>`);
+  // 一致率评估
+  if(s.dualN>0){
+    if(s.iaa<0.7) out.push(`<div class="insight">⚠️ 容忍一致率仅 <b>${pct(s.iaa)}</b>（&lt;70%），评测员 A/B 分歧偏大，建议组织一次对齐会，统一打分标准。</div>`);
+    else out.push(`<div class="insight">✅ 容忍一致率 <b>${pct(s.iaa)}</b>，评测员一致性良好。</div>`);
+  }
+  // 分歧最大的样本
+  const bigDiff = rows.filter(r=>r.diff!=null).sort((a,b)=>b.diff-a.diff).slice(0,3).filter(r=>r.diff>=2);
+  if(bigDiff.length)
+    out.push(`<div class="insight">🔍 分歧最大的样本：${bigDiff.map(r=>`${esc(r.task_id)}(A=${r.score_a}/B=${r.score_b})`).join('、')}，建议人工仲裁并明确规则。</div>`);
+  // Badcase 总体
+  out.push(`<div class="insight">📊 共 <b>${s.bad}</b> 个 Badcase（占 ${pct(s.badRate)}），低分样本占 ${pct(s.lowRate)}，分歧样本占 ${pct(s.diffRate)}。${s.badRate>0.3?'Badcase 比例较高，需重点排查数据质量。':''}</div>`);
+  $('insights').innerHTML = out.join('');
+}
+
+/* 明细表 + 筛选 */
+function currentFiltered(){
+  const kw = $('kw').value.trim();
+  const tf = $('typeFilter').value;
+  return ROWS.filter(r=>{
+    if(FILTER==='bad'&&!r.isBad) return false;
+    if(FILTER==='low'&&!r.isLow) return false;
+    if(FILTER==='diff'&&!r.isDiff) return false;
+    if(tf && r.type!==tf) return false;
+    if(kw && !((r.query||'').includes(kw)||(r.remark||'').includes(kw)||String(r.task_id).includes(kw))) return false;
+    return true;
+  });
+}
+
+function renderTable(){
+  const data = currentFiltered();
+  $('filterCount').textContent = `（显示 ${data.length} / 共 ${ROWS.length} 条）`;
+  const head=['#','任务ID','Query','媒体','A分','B分','平均','分差','类型','是否Bad','命中规则','备注'];
+  let h='<tr>'+head.map(x=>`<th>${x}</th>`).join('')+'</tr>';
+  data.slice(0,1000).forEach(r=>{
+    const media = r.media? `<a href="${esc(r.media)}" target="_blank" title="${esc(r.media)}">查看</a>`:'';
+    h+=`<tr class="${r.isBad?'bad':''}">
+      <td>${r._i}</td><td>${esc(r.task_id)}</td>
+      <td title="${esc(r.query)}">${esc(r.query).slice(0,40)}</td>
+      <td>${media}</td>
+      <td>${r.score_a??''}</td><td>${r.score_b??''}</td>
+      <td>${r.avg!=null?r.avg.toFixed(1):''}</td>
+      <td>${r.diff??''}</td>
+      <td>${esc(r.type)}</td>
+      <td>${r.isBad?'<span class="tag bad">是</span>':'<span class="tag ok">否</span>'}</td>
+      <td title="${esc(r.reasons.join('；'))}">${esc(r.reasons.join('；')).slice(0,30)}</td>
+      <td title="${esc(r.remark)}">${esc(r.remark).slice(0,30)}</td>
+    </tr>`;
+  });
+  if(!data.length) h+='<tr><td colspan="12" class="empty">无符合条件的数据</td></tr>';
+  $('tbl').innerHTML=h;
+}
+
+/* 预览前 20 行（解析后即时反馈，用原始字段） */
+function previewMsg(n){
+  $('parseMsg').innerHTML = `✅ 解析成功，共 <b>${n}</b> 行。已自动识别字段、标红 Badcase。可向下查看指标、图表与明细。`;
+}
+
+/* =========================================================================
+   主流程：拿到原始行 → 映射 → 标准化 → 统计 → 渲染
+   ========================================================================= */
+function process(raw){
+  if(!raw || !raw.length){ alert('未读取到数据行，请检查文件内容。'); return; }
+  RAW = raw;
+  const headers = Object.keys(raw[0]);
+  const map = buildFieldMap(headers);
+  ROWS = normalizeRows(raw, map);
+  STATS = computeStats(ROWS);
+
+  // 填充类型筛选下拉
+  const types=[...new Set(ROWS.map(r=>r.type))];
+  $('typeFilter').innerHTML='<option value="">问题类型(全部)</option>'+types.map(t=>`<option>${esc(t)}</option>`).join('');
+
+  renderMap(map, headers);
+  renderKpis(STATS);
+  renderCharts(STATS);
+  renderInsights(STATS, ROWS);
+  renderTable();
+  previewMsg(ROWS.length);
+  $('main').style.display='block';
+  $('main').scrollIntoView({behavior:'smooth'});
+}
+
+/* ---------- 文件读取 ---------- */
+function readFile(file){
+  const name=file.name.toLowerCase();
+  const reader=new FileReader();
+  if(name.endsWith('.csv')){
+    reader.onload=e=>{ try{ process(parseCSV(e.target.result)); }catch(err){ alert('CSV 解析失败：'+err.message);} };
+    reader.readAsText(file,'utf-8');
+  }else{
+    if(typeof XLSX==='undefined'){ alert('Excel 解析库未加载（可能离线）。请改用 CSV，或参考页面底部“离线使用”说明。'); return; }
+    reader.onload=e=>{
+      try{
+        const wb=XLSX.read(new Uint8Array(e.target.result),{type:'array'});
+        const ws=wb.Sheets[wb.SheetNames[0]];
+        const json=XLSX.utils.sheet_to_json(ws,{defval:''});
+        process(json);
+      }catch(err){ alert('Excel 解析失败：'+err.message); }
+    };
+    reader.readAsArrayBuffer(file);
+  }
+}
+
+/* 本地轻量 CSV 解析（支持引号、逗号、换行） */
+function parseCSV(text){
+  text=text.replace(/^﻿/,''); // 去 BOM
+  const rows=[]; let row=[],cur='',q=false;
+  for(let i=0;i<text.length;i++){
+    const c=text[i];
+    if(q){
+      if(c==='"'){ if(text[i+1]==='"'){cur+='"';i++;} else q=false; }
+      else cur+=c;
+    }else{
+      if(c==='"') q=true;
+      else if(c===','){ row.push(cur); cur=''; }
+      else if(c==='\n'){ row.push(cur); rows.push(row); row=[]; cur=''; }
+      else if(c==='\r'){}
+      else cur+=c;
+    }
+  }
+  if(cur!==''||row.length){ row.push(cur); rows.push(row); }
+  if(rows.length<2) return [];
+  const headers=rows[0];
+  return rows.slice(1).filter(r=>r.some(x=>x!=='')).map(r=>{
+    const o={}; headers.forEach((h,i)=>o[h]=r[i]==null?'':r[i]); return o;
+  });
+}
+
+/* ---------- 导出：CSV ---------- */
+function toCSV(rows){
+  const cols=['任务ID','Query','媒体链接','A打分','B打分','平均分','分差','问题类型','是否Badcase','命中规则','备注','日期'];
+  const lines=[cols.join(',')];
+  rows.forEach(r=>{
+    const cells=[r.task_id,r.query,r.media,r.score_a,r.score_b,r.avg!=null?r.avg.toFixed(1):'',r.diff,r.type,r.isBad?'是':'否',r.reasons.join('；'),r.remark,r.date];
+    lines.push(cells.map(c=>{ const s=String(c==null?'':c); return /[",\n]/.test(s)?'"'+s.replace(/"/g,'""')+'"':s; }).join(','));
+  });
+  return '﻿'+lines.join('\n');
+}
+function download(filename, content, mime){
+  const blob=new Blob([content],{type:mime||'text/plain;charset=utf-8'});
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(blob); a.download=filename;
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(()=>URL.revokeObjectURL(a.href),1000);
+}
+
+/* ---------- 导出：Markdown 报告 ---------- */
+function buildMarkdown(){
+  const s=STATS, types=['语言','内容','指令','安全','其他'];
+  const today=new Date().toLocaleDateString('zh-CN');
+  let m=`# 评测标注数据质检报告\n\n> 生成日期：${today}　|　工具：本地质检工具 V1\n\n`;
+  m+=`## 一、项目概览\n\n- 总样本数：**${s.n}**\n- Badcase 数量：**${s.bad}**（占比 ${pct(s.badRate)}）\n- 平均分：**${s.avgScore.toFixed(2)}**\n- 容忍一致率 IAA：**${pct(s.iaa)}**\n\n`;
+  m+=`## 二、核心指标\n\n| 指标 | 数值 |\n|---|---|\n| 总样本数 | ${s.n} |\n| Badcase 数量 | ${s.bad} |\n| Badcase 占比 | ${pct(s.badRate)} |\n| 平均分 | ${s.avgScore.toFixed(2)} |\n| 低分样本占比 | ${pct(s.lowRate)} |\n| 分歧样本占比 | ${pct(s.diffRate)} |\n| 容忍一致率 IAA | ${pct(s.iaa)} |\n\n`;
+  m+=`## 三、问题类型分布\n\n| 问题类型 | 样本数 | Badcase | 通过率 |\n|---|---|---|---|\n`;
+  types.forEach(t=>{ const tt=s.byType[t]; if(tt.total) m+=`| ${t} | ${tt.total} | ${tt.bad} | ${pct(tt.total?1-tt.bad/tt.total:0)} |\n`; });
+  m+=`\n## 四、评测员一致性分析\n\n- 双人打分样本：${s.dualN} 条\n- 一致（分差≤1）：${s.agreeN} 条\n- 容忍一致率：**${pct(s.iaa)}**\n\n`;
+  // 高风险样本（badcase 中按平均分升序取前 20）
+  const high=ROWS.filter(r=>r.isBad).sort((a,b)=>(a.avg??9)-(b.avg??9)).slice(0,20);
+  m+=`## 五、高风险样本列表（前 ${high.length} 条）\n\n| 任务ID | A | B | 平均 | 类型 | 命中规则 | 备注 |\n|---|---|---|---|---|---|---|\n`;
+  high.forEach(r=>{ m+=`| ${r.task_id} | ${r.score_a??''} | ${r.score_b??''} | ${r.avg!=null?r.avg.toFixed(1):''} | ${r.type} | ${r.reasons.join('；')} | ${String(r.remark).replace(/\|/g,'/').slice(0,40)} |\n`; });
+  // 建议
+  m+=`\n## 六、可复盘建议\n\n`;
+  const insightText=[...$('insights').querySelectorAll('.insight')].map(e=>'- '+e.textContent.trim()).join('\n');
+  m+=insightText+'\n';
+  return m;
+}
+
+/* ---------- 导出：HTML 报告（自包含，可双击打开） ---------- */
+function buildHtmlReport(){
+  const s=STATS;
+  const today=new Date().toLocaleDateString('zh-CN');
+  const kpisHtml=$('kpis').outerHTML;
+  const chartsHtml=$('charts').outerHTML;
+  const insightsHtml=$('insights').innerHTML;
+  // Badcase 明细表
+  const bad=ROWS.filter(r=>r.isBad);
+  let badRows=bad.map(r=>`<tr class="bad"><td>${esc(r.task_id)}</td><td>${esc(String(r.query).slice(0,50))}</td><td>${r.score_a??''}</td><td>${r.score_b??''}</td><td>${r.avg!=null?r.avg.toFixed(1):''}</td><td>${esc(r.type)}</td><td>${esc(r.reasons.join('；'))}</td><td>${esc(String(r.remark).slice(0,40))}</td></tr>`).join('');
+  return `<!DOCTYPE html><html lang="zh-CN"><head><meta charset="UTF-8"><title>质检报告 ${today}</title>
+<style>body{font-family:"Microsoft YaHei",sans-serif;background:#f5f6f8;color:#1f2329;max-width:1100px;margin:0 auto;padding:24px}
+h1{color:#2b6de8}.card{background:#fff;border:1px solid #e6e8eb;border-radius:10px;padding:18px;margin:16px 0}
+.kpis{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:12px}
+.kpi{border:1px solid #e6e8eb;border-radius:9px;padding:14px}.kpi .v{font-size:24px;font-weight:700}.kpi .l{font-size:12px;color:#646a73}
+.kpi.bad .v{color:#c0392b}.kpi.brand .v{color:#2b6de8}
+.charts{display:grid;grid-template-columns:1fr 1fr;gap:18px}.chart-box{border:1px solid #e6e8eb;border-radius:9px;padding:14px}
+.bar-row{display:flex;align-items:center;gap:8px;margin:6px 0}.bar-row .name{width:84px;font-size:12px;color:#646a73;text-align:right}
+.bar-track{flex:1;background:#eef1f6;border-radius:5px;height:18px;overflow:hidden}.bar-fill{height:100%;background:#2b6de8;color:#fff;font-size:11px;text-align:right;padding-right:6px;box-sizing:border-box}
+.bar-fill.bad{background:#e25c5c}.bar-fill.ok{background:#3aa863}.donut-wrap{display:flex;gap:18px;align-items:center;flex-wrap:wrap}.legend{font-size:12px}.legend div{display:flex;gap:6px;margin:4px 0}.legend i{width:11px;height:11px;border-radius:3px}
+table{border-collapse:collapse;width:100%;font-size:12.5px}th,td{border:1px solid #e6e8eb;padding:6px 8px;text-align:left}th{background:#f0f2f5}tr.bad td{background:#fde2e2}
+.insight{background:#f7faff;border-left:3px solid #2b6de8;padding:10px 14px;border-radius:6px;margin:8px 0;font-size:13px}.empty{color:#646a73;text-align:center;padding:20px}</style></head>
+<body><h1>🛡️ 评测标注数据质检报告</h1><p>生成日期：${today}　|　总样本 ${s.n} 条　|　Badcase ${s.bad} 个（${pct(s.badRate)}）</p>
+<div class="card"><h2>核心指标</h2>${kpisHtml}</div>
+<div class="card"><h2>统计图表</h2>${chartsHtml}</div>
+<div class="card"><h2>可复盘建议</h2>${insightsHtml}</div>
+<div class="card"><h2>Badcase 明细（${bad.length} 条）</h2><div style="overflow:auto"><table><tr><th>任务ID</th><th>Query</th><th>A</th><th>B</th><th>平均</th><th>类型</th><th>命中规则</th><th>备注</th></tr>${badRows||'<tr><td colspan=8 class=empty>无 Badcase</td></tr>'}</table></div></div>
+<p style="color:#646a73;font-size:12px">本报告由本地质检工具 V1 生成，数据未上传任何服务器。</p></body></html>`;
+}
+
+/* =========================================================================
+   事件绑定
+   ========================================================================= */
+$('drop').onclick=()=>$('file').click();
+$('file').onchange=e=>{ if(e.target.files[0]) readFile(e.target.files[0]); };
+$('drop').ondragover=e=>{e.preventDefault();$('drop').style.background='#eef4ff';};
+$('drop').ondragleave=()=>$('drop').style.background='';
+$('drop').ondrop=e=>{e.preventDefault();$('drop').style.background='';if(e.dataTransfer.files[0])readFile(e.dataTransfer.files[0]);};
+
+// 快捷筛选
+document.querySelectorAll('#filters .chip').forEach(ch=>{
+  ch.onclick=()=>{ document.querySelectorAll('#filters .chip').forEach(x=>x.classList.remove('active'));
+    ch.classList.add('active'); FILTER=ch.dataset.f; renderTable(); };
+});
+document.querySelector('#filters .chip[data-f="all"]').classList.add('active');
+$('typeFilter').onchange=renderTable;
+$('kw').oninput=renderTable;
+
+// 导出
+$('expHtml').onclick=()=>{ if(!STATS)return; download(`质检报告_${Date.now()}.html`, buildHtmlReport(),'text/html;charset=utf-8'); };
+$('expMd').onclick=()=>{ if(!STATS)return; download(`质检报告_${Date.now()}.md`, buildMarkdown(),'text/markdown;charset=utf-8'); };
+$('expCsvAll').onclick=()=>{ if(!ROWS.length)return; download(`质检明细_全部_${Date.now()}.csv`, toCSV(ROWS),'text/csv;charset=utf-8'); };
+$('expCsvBad').onclick=()=>{ if(!ROWS.length)return; download(`质检明细_Badcase_${Date.now()}.csv`, toCSV(ROWS.filter(r=>r.isBad)),'text/csv;charset=utf-8'); };
+
+$('resetBtn').onclick=()=>{ RAW=[];ROWS=[];STATS=null; $('main').style.display='none'; $('parseMsg').textContent=''; $('file').value=''; };
+
+// 示例数据：体验全流程
+$('demoBtn').onclick=()=>{
+  const demo=[
+    {任务ID:'T001',query:'识别图中动物',图片链接:'http://x/1.jpg','评测员A打分':5,'评测员B打分':5,问题类型:'内容',备注:'',是否Badcase:'',日期:'2026-06-20'},
+    {任务ID:'T002',query:'翻译这句话',图片链接:'','评测员A打分':2,'评测员B打分':3,问题类型:'语言',备注:'翻译错误',是否Badcase:'是',日期:'2026-06-20'},
+    {任务ID:'T003',query:'按指令排序',图片链接:'','评测员A打分':5,'评测员B打分':2,问题类型:'指令',备注:'未按指令',是否Badcase:'',日期:'2026-06-21'},
+    {任务ID:'T004',query:'是否含违规内容',图片链接:'','评测员A打分':1,'评测员B打分':1,问题类型:'安全',备注:'违规未识别',是否Badcase:'',日期:'2026-06-21'},
+    {任务ID:'T005',query:'描述视频内容',图片链接:'','评测员A打分':4,'评测员B打分':4,问题类型:'内容',备注:'',是否Badcase:'',日期:'2026-06-22'},
+    {任务ID:'T006',query:'内容是否模糊',图片链接:'','评测员A打分':3,'评测员B打分':3,问题类型:'',备注:'图片模糊',是否Badcase:'',日期:'2026-06-22'},
+    {任务ID:'T007',query:'指令遵循度',图片链接:'','评测员A打分':4,'评测员B打分':5,问题类型:'指令',备注:'',是否Badcase:'',日期:'2026-06-23'},
+    {任务ID:'T008',query:'语言流畅度',图片链接:'','评测员A打分':2,'评测员B打分':2,问题类型:'语言',备注:'表达异常',是否Badcase:'',日期:'2026-06-23'},
+  ];
+  process(demo);
+};
+</script>
+</body>
+</html>

@@ -1,0 +1,130 @@
+/* ============================================================
+   液态玻璃 / 毛玻璃质感 + 雨夜背景
+   ============================================================ */
+
+/* ---------- 通用玻璃卡 ---------- */
+.glass-card {
+  position: relative;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: var(--radius);
+  backdrop-filter: blur(22px) saturate(150%);
+  -webkit-backdrop-filter: blur(22px) saturate(150%);
+  box-shadow:
+    0 10px 40px rgba(0, 0, 0, 0.35),
+    inset 0 1px 0 rgba(255, 255, 255, 0.18),
+    inset 0 -1px 0 rgba(0, 0, 0, 0.1);
+  overflow: hidden;
+}
+
+/* 顶部高光，制造液态玻璃的边缘折射感 */
+.glass-card::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background:
+    radial-gradient(120% 80% at 50% -20%, rgba(255,255,255,.14), transparent 60%);
+  pointer-events: none;
+}
+
+.glass-bar {
+  background: rgba(255, 255, 255, 0.07);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  backdrop-filter: blur(20px) saturate(140%);
+  -webkit-backdrop-filter: blur(20px) saturate(140%);
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.3), inset 0 1px 0 rgba(255,255,255,.16);
+}
+
+/* ============================================================
+   背景层
+   ============================================================ */
+.bg-layer { position: fixed; inset: 0; z-index: -2; overflow: hidden; }
+
+.bg-gradient {
+  position: absolute; inset: 0;
+  background:
+    radial-gradient(120% 90% at 50% -10%, var(--bg-2), transparent 55%),
+    linear-gradient(180deg, var(--bg-1) 0%, var(--bg-0) 70%);
+  transition: background 1.2s var(--ease);
+}
+
+/* 远处城市灯光：柔和的暖色光点 */
+.bg-citylights {
+  position: absolute; left: 0; right: 0; bottom: 0; height: 42%;
+  background:
+    radial-gradient(2px 2px at 12% 86%, rgba(230,201,163,.9), transparent),
+    radial-gradient(2px 2px at 22% 92%, rgba(230,201,163,.6), transparent),
+    radial-gradient(1.5px 1.5px at 34% 84%, rgba(200,180,255,.6), transparent),
+    radial-gradient(2px 2px at 48% 90%, rgba(230,201,163,.8), transparent),
+    radial-gradient(1.5px 1.5px at 62% 86%, rgba(160,200,230,.6), transparent),
+    radial-gradient(2px 2px at 74% 93%, rgba(230,201,163,.7), transparent),
+    radial-gradient(1.5px 1.5px at 86% 85%, rgba(200,180,255,.5), transparent),
+    radial-gradient(2px 2px at 94% 90%, rgba(230,201,163,.6), transparent);
+  filter: blur(.5px);
+  opacity: .8;
+  animation: cityFlicker 6s ease-in-out infinite;
+}
+@keyframes cityFlicker { 0%,100%{opacity:.7;} 50%{opacity:.95;} }
+
+/* 窗户与雨滴画布 */
+.bg-window { position: absolute; inset: 0; }
+.window-glass {
+  position: absolute; inset: 0;
+  background:
+    linear-gradient(115deg, rgba(127,182,214,.05) 0%, transparent 40%),
+    linear-gradient(295deg, rgba(230,201,163,.04) 0%, transparent 45%);
+  /* 模糊的窗格分隔光影 */
+  box-shadow:
+    inset 0 0 200px rgba(0,0,0,.4);
+}
+#rainCanvas { position: absolute; inset: 0; width: 100%; height: 100%; opacity: .6; }
+
+.bg-vignette {
+  position: absolute; inset: 0;
+  background: radial-gradient(120% 120% at 50% 40%, transparent 55%, rgba(0,0,0,.55) 100%);
+  pointer-events: none;
+}
+
+/* ============================================================
+   氛围强度切换（body[data-ambient]）
+   ============================================================ */
+
+/* 安静：更亮、更平、雨弱 */
+body[data-ambient="quiet"] {
+  --bg-0: #16242f;
+  --bg-1: #20323f;
+  --bg-2: #2b4456;
+}
+body[data-ambient="quiet"] #rainCanvas { opacity: .25; }
+body[data-ambient="quiet"] .bg-citylights { opacity: .5; }
+body[data-ambient="quiet"] .bg-vignette { opacity: .6; }
+
+/* 雨夜：默认 */
+body[data-ambient="rainy"] {
+  --bg-0: #0b1622;
+  --bg-1: #142433;
+  --bg-2: #1b3346;
+}
+
+/* 深夜：更暗、灯光更突出、雨更强 */
+body[data-ambient="midnight"] {
+  --bg-0: #05090f;
+  --bg-1: #0a121c;
+  --bg-2: #111f2e;
+}
+body[data-ambient="midnight"] #rainCanvas { opacity: .8; }
+body[data-ambient="midnight"] .bg-citylights { opacity: 1; }
+body[data-ambient="midnight"] .bg-vignette { background: radial-gradient(120% 120% at 50% 40%, transparent 40%, rgba(0,0,0,.78) 100%); }
+
+/* 休息阶段：整体偏暖一点 */
+body.is-break .bg-gradient {
+  background:
+    radial-gradient(120% 90% at 50% -10%, #2a3140, transparent 55%),
+    linear-gradient(180deg, #1c2230 0%, var(--bg-0) 70%);
+}
+
+/* 减少动效偏好 */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation: none !important; transition: none !important; }
+}

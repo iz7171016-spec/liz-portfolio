@@ -1,0 +1,281 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>雨夜窗边 · 专注空间</title>
+  <link rel="stylesheet" href="css/style.css" />
+  <link rel="stylesheet" href="css/glass.css" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+</head>
+<body data-ambient="rainy">
+
+  <!-- 背景层：渐变 + 城市灯光 + 窗户 + 雨滴 -->
+  <div class="bg-layer">
+    <div class="bg-gradient"></div>
+    <div class="bg-citylights"></div>
+    <div class="bg-window">
+      <div class="window-glass"></div>
+      <canvas id="rainCanvas"></canvas>
+    </div>
+    <div class="bg-vignette"></div>
+  </div>
+
+  <!-- 角色选择遮罩 -->
+  <div class="modal-mask" id="characterModal">
+    <div class="glass-card modal-card">
+      <h2 class="modal-title">选择你的角色</h2>
+      <p class="modal-sub">不同角色的任务、打卡与设置会分别保存在本地</p>
+      <div class="character-grid" id="characterGrid"></div>
+      <div class="character-create">
+        <input type="text" id="newCharName" maxlength="8" placeholder="自定义角色名…" />
+        <select id="newCharIcon">
+          <option value="🎓">🎓 学生</option>
+          <option value="📚">📚 备考人</option>
+          <option value="✍️">✍️ 创作者</option>
+          <option value="💼">💼 打工人</option>
+          <option value="🌙">🌙 夜行者</option>
+          <option value="☕">☕ 自由人</option>
+        </select>
+        <button class="btn btn-soft" id="createCharBtn">创建</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 顶部导航 -->
+  <header class="topbar glass-bar">
+    <div class="brand">
+      <span class="brand-dot"></span>
+      <span class="brand-name">雨夜窗边</span>
+    </div>
+    <nav class="nav" id="nav">
+      <button class="nav-btn active" data-view="home">专注</button>
+      <button class="nav-btn" data-view="stats">打卡</button>
+      <button class="nav-btn" data-view="settings">设置</button>
+    </nav>
+    <button class="char-chip" id="charChip" title="切换角色">
+      <span id="charChipIcon">🎓</span>
+      <span id="charChipName">学生</span>
+    </button>
+  </header>
+
+  <main class="container">
+
+    <!-- ============ 首页：倒计时 ============ -->
+    <section class="view view-home active" id="view-home">
+      <div class="home-grid">
+
+        <!-- 左：计时主卡 -->
+        <div class="glass-card timer-card">
+          <div class="timer-state">
+            <span class="state-dot" id="stateDot"></span>
+            <span id="stateText">专注中</span>
+          </div>
+
+          <div class="timer-display" id="timerDisplay">25:00</div>
+
+          <div class="cycle-progress">
+            <span id="cycleText">第 1 / 4 轮</span>
+            <div class="cycle-dots" id="cycleDots"></div>
+          </div>
+
+          <div class="timer-controls">
+            <button class="btn btn-ghost" id="resetBtn" title="重置">↺</button>
+            <button class="btn btn-primary btn-lg" id="startPauseBtn">开始</button>
+            <button class="btn btn-ghost" id="skipBtn" title="切换阶段">⇄</button>
+          </div>
+
+          <div class="today-goal">
+            <label for="goalInput">今日目标</label>
+            <input type="text" id="goalInput" placeholder="写下今天想完成的事…" />
+          </div>
+        </div>
+
+        <!-- 右：任务 + 语录 + 音频 -->
+        <div class="home-side">
+
+          <div class="glass-card task-card">
+            <div class="card-head">
+              <h3>任务清单</h3>
+              <span class="task-count" id="taskCount">0 / 0</span>
+            </div>
+            <div class="task-add">
+              <input type="text" id="taskInput" placeholder="添加一个任务…" />
+              <button class="btn btn-soft" id="addTaskBtn">+</button>
+            </div>
+            <ul class="task-list" id="taskList"></ul>
+          </div>
+
+          <div class="glass-card quote-card" id="quoteCard">
+            <div class="quote-mark">"</div>
+            <p class="quote-text" id="quoteText">在安静里，把心放回当下。</p>
+            <p class="quote-author" id="quoteAuthor">— 雨夜窗边</p>
+            <button class="quote-refresh" id="quoteRefresh" title="换一句">⟳</button>
+          </div>
+
+          <div class="glass-card audio-card">
+            <div class="card-head">
+              <h3>白噪音</h3>
+              <div class="volume-wrap">
+                <span class="vol-ico">🔊</span>
+                <input type="range" id="volumeSlider" min="0" max="100" value="50" />
+              </div>
+            </div>
+            <div class="audio-grid" id="audioGrid">
+              <button class="audio-btn" data-sound="rain"><span>🌧️</span>雨声</button>
+              <button class="audio-btn" data-sound="cafe"><span>☕</span>咖啡馆</button>
+              <button class="audio-btn" data-sound="library"><span>📖</span>图书馆</button>
+              <button class="audio-btn" data-sound="music"><span>🎵</span>轻音乐</button>
+            </div>
+          </div>
+
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ 统计打卡页 ============ -->
+    <section class="view view-stats" id="view-stats">
+      <div class="stats-cards">
+        <div class="glass-card stat-box">
+          <div class="stat-num" id="statTodayCount">0</div>
+          <div class="stat-label">今日专注次数</div>
+        </div>
+        <div class="glass-card stat-box">
+          <div class="stat-num" id="statTodayMin">0<small>分</small></div>
+          <div class="stat-label">今日专注时长</div>
+        </div>
+        <div class="glass-card stat-box">
+          <div class="stat-num" id="statStreak">0<small>天</small></div>
+          <div class="stat-label">连续学习天数</div>
+        </div>
+        <div class="glass-card stat-box">
+          <div class="stat-num" id="statTotalHour">0<small>小时</small></div>
+          <div class="stat-label">累计学习时长</div>
+        </div>
+      </div>
+
+      <div class="glass-card heatmap-card">
+        <div class="card-head">
+          <h3>学习热力图</h3>
+          <span class="heatmap-year" id="heatmapYear"></span>
+        </div>
+        <div class="heatmap-scroll">
+          <div class="heatmap" id="heatmap"></div>
+        </div>
+        <div class="heatmap-legend">
+          <span>少</span>
+          <i class="lv lv0"></i><i class="lv lv1"></i><i class="lv lv2"></i><i class="lv lv3"></i><i class="lv lv4"></i>
+          <span>多</span>
+        </div>
+      </div>
+
+      <div class="glass-card badges-card">
+        <div class="card-head"><h3>成就徽章</h3></div>
+        <div class="badges-grid" id="badgesGrid"></div>
+      </div>
+    </section>
+
+    <!-- ============ 自定义设置页 ============ -->
+    <section class="view view-settings" id="view-settings">
+      <div class="glass-card settings-card">
+        <h3>计时设置</h3>
+
+        <div class="setting-row">
+          <label>专注时长</label>
+          <div class="stepper">
+            <button data-act="dec" data-key="focusMin">−</button>
+            <span id="set-focusMin">25</span><em>分钟</em>
+            <button data-act="inc" data-key="focusMin">+</button>
+          </div>
+        </div>
+
+        <div class="setting-row">
+          <label>休息时长</label>
+          <div class="stepper">
+            <button data-act="dec" data-key="breakMin">−</button>
+            <span id="set-breakMin">5</span><em>分钟</em>
+            <button data-act="inc" data-key="breakMin">+</button>
+          </div>
+        </div>
+
+        <div class="setting-row">
+          <label>循环次数</label>
+          <div class="stepper">
+            <button data-act="dec" data-key="cycles">−</button>
+            <span id="set-cycles">4</span><em>轮</em>
+            <button data-act="inc" data-key="cycles">+</button>
+          </div>
+        </div>
+
+        <div class="setting-row">
+          <label>自动进入休息</label>
+          <label class="switch">
+            <input type="checkbox" id="set-autoBreak" />
+            <span class="slider-sw"></span>
+          </label>
+        </div>
+
+        <div class="setting-row">
+          <label>休息后自动开始专注</label>
+          <label class="switch">
+            <input type="checkbox" id="set-autoFocus" />
+            <span class="slider-sw"></span>
+          </label>
+        </div>
+      </div>
+
+      <div class="glass-card settings-card">
+        <h3>氛围与声音</h3>
+
+        <div class="setting-row">
+          <label>默认白噪音</label>
+          <select id="set-defaultSound">
+            <option value="none">无</option>
+            <option value="rain">雨声</option>
+            <option value="cafe">咖啡馆</option>
+            <option value="library">图书馆</option>
+            <option value="music">轻音乐</option>
+          </select>
+        </div>
+
+        <div class="setting-row">
+          <label>页面氛围强度</label>
+          <div class="seg" id="ambientSeg">
+            <button data-ambient="quiet">安静</button>
+            <button data-ambient="rainy" class="active">雨夜</button>
+            <button data-ambient="midnight">深夜</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="glass-card settings-card">
+        <h3>角色与数据</h3>
+        <div class="setting-row">
+          <label>当前角色</label>
+          <button class="btn btn-soft" id="switchCharBtn">切换 / 新建角色</button>
+        </div>
+        <div class="setting-row">
+          <label>清空当前角色数据</label>
+          <button class="btn btn-danger" id="clearDataBtn">清空</button>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- 完成提示：轻微光晕条 -->
+  <div class="toast" id="toast"></div>
+
+  <!-- 脚本：逻辑与组件分离 -->
+  <script src="js/storage.js"></script>
+  <script src="js/quotes.js"></script>
+  <script src="js/audio.js"></script>
+  <script src="js/rain.js"></script>
+  <script src="js/timer.js"></script>
+  <script src="js/tasks.js"></script>
+  <script src="js/stats.js"></script>
+  <script src="js/character.js"></script>
+  <script src="js/settings.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>
