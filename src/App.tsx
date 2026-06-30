@@ -109,6 +109,27 @@ const interestCards = [
   },
 ];
 
+const aiPortfolioBlocks = [
+  {
+    title: "日常风景实验",
+    note: "把自然、街道、季节和光线整理成一组视觉片段，像给日常留下几页安静的注脚。",
+    images: [
+      assetSrc("/portfolio/p1.png"),
+      assetSrc("/portfolio/p2.png"),
+      assetSrc("/portfolio/p3.png"),
+    ],
+  },
+  {
+    title: "氛围空间实验",
+    note: "尝试用 AI 生成带有叙事感的空间：书店、雨夜、乡村、樱花路，每一张都保留一点可以继续想象的余地。",
+    images: [
+      assetSrc("/portfolio/p4.png"),
+      assetSrc("/portfolio/p5.png"),
+      assetSrc("/portfolio/p6.png"),
+    ],
+  },
+];
+
 const detailPages = {
   intro: {
     number: "01 / 01",
@@ -163,7 +184,16 @@ const detailPages = {
     links: [
       { label: "Open V1 质检工具", href: assetSrc("/tools/quality-check.html") },
       { label: "Open LateLight AI 自习室", href: "#latelight" },
+      { label: "Open AI作品集", href: "#ai-portfolio" },
     ],
+  },
+  "ai-portfolio": {
+    number: "02 / 04",
+    title: "AI作品集",
+    back: "#ai-products",
+    text: "我们总在不自觉地重复既定的生活模式，习惯性跟风、产生标准化情绪。我用这支短片记录日常里的荒诞瞬间，希望始终做一个清醒的旁观者，守住自己的思考与节奏。",
+    portfolioBlocks: aiPortfolioBlocks,
+    video: assetSrc("/portfolio/ai-short-film.mp4"),
   },
   "ai-work": {
     number: "03 / 01",
@@ -309,6 +339,14 @@ export function App() {
     target: string,
   ) => {
     event.preventDefault();
+    const targetRoute = target.replace("#", "");
+    if (targetRoute in detailPages) {
+      flushSync(() => setRoute(targetRoute));
+      window.history.pushState(null, "", target);
+      window.scrollTo({ top: 0, behavior: "auto" });
+      return;
+    }
+
     flushSync(() => setRoute(""));
     window.history.pushState(null, "", target);
     const targetElement = document.querySelector(target);
@@ -542,6 +580,54 @@ export function App() {
                     </div>
                   </div>
                 </div>
+              ) : "portfolioBlocks" in detailPage ? (
+                <div className="self-end space-y-5">
+                  <p className="text-base leading-7 text-white/78 md:text-xl md:leading-9">
+                    {detailPage.text}
+                  </p>
+                  <div className="grid gap-4">
+                    {detailPage.portfolioBlocks.map((block) => (
+                      <div
+                        key={block.title}
+                        className="rounded-3xl border border-white/12 bg-white/[0.035] p-4 shadow-2xl shadow-black/20"
+                      >
+                        <div className="mb-4 flex flex-col gap-2 md:flex-row md:items-end md:justify-between">
+                          <p className="text-xs uppercase tracking-[0.22em] text-white/48">
+                            {block.title}
+                          </p>
+                          <p className="max-w-xl text-sm leading-6 text-white/62">{block.note}</p>
+                        </div>
+                        <div className="grid gap-3 md:grid-cols-3">
+                          {block.images.map((image, imageIndex) => (
+                            <img
+                              key={image}
+                              src={image}
+                              alt={`${block.title} ${imageIndex + 1}`}
+                              className="aspect-[16/10] w-full rounded-2xl border border-white/10 object-cover"
+                              loading="lazy"
+                            />
+                          ))}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                  <div className="rounded-3xl border border-white/12 bg-white/[0.035] p-4 shadow-2xl shadow-black/20">
+                    <div className="mb-4">
+                      <p className="text-xs uppercase tracking-[0.22em] text-white/48">
+                        短片记录
+                      </p>
+                      <p className="mt-2 text-sm leading-6 text-white/62">
+                        用影像保留那些看似荒诞、却会让人突然清醒的日常瞬间。
+                      </p>
+                    </div>
+                    <video
+                      src={detailPage.video}
+                      controls
+                      preload="metadata"
+                      className="aspect-video w-full rounded-2xl border border-white/10 object-cover"
+                    />
+                  </div>
+                </div>
               ) : "paragraphs" in detailPage ? (
                 <div className="self-end space-y-6">
                   {"image" in detailPage && (
@@ -564,17 +650,21 @@ export function App() {
               )}
               {"links" in detailPage && (
                 <div className="mt-8 flex flex-wrap gap-3 md:col-start-2">
-                  {detailPage.links.map((link) => (
-                    <a
-                      key={link.href}
-                      href={link.href}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="inline-flex w-fit rounded-full border border-white/15 px-5 py-3 text-xs uppercase tracking-[0.18em] text-white/60 transition-colors hover:border-white/40 hover:text-white"
-                    >
-                      {link.label}
-                    </a>
-                  ))}
+                  {detailPage.links.map((link) => {
+                    const isInternalLink = link.href.startsWith("#");
+
+                    return (
+                      <a
+                        key={link.href}
+                        href={link.href}
+                        target={isInternalLink ? undefined : "_blank"}
+                        rel={isInternalLink ? undefined : "noreferrer"}
+                        className="inline-flex w-fit rounded-full border border-white/15 px-5 py-3 text-xs uppercase tracking-[0.18em] text-white/60 transition-colors hover:border-white/40 hover:text-white"
+                      >
+                        {link.label}
+                      </a>
+                    );
+                  })}
                 </div>
               )}
               {"source" in detailPage && (
