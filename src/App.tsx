@@ -304,6 +304,7 @@ export function App() {
   const [isLearningOpen, setIsLearningOpen] = useState(false);
   const [isSkillOpen, setIsSkillOpen] = useState(false);
   const [isMusicOn, setIsMusicOn] = useState(false);
+  const [previewImage, setPreviewImage] = useState<string | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const [route, setRoute] = useState(() => window.location.hash.replace("#", ""));
 
@@ -465,6 +466,31 @@ export function App() {
           </div>
         )}
 
+        {previewImage && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/55 px-4 py-6 backdrop-blur-sm">
+            <button
+              type="button"
+              className="absolute inset-0 cursor-default"
+              aria-label="Close portfolio image"
+              onClick={() => setPreviewImage(null)}
+            />
+            <div className="liquid-glass relative z-10 w-full max-w-5xl rounded-3xl p-3">
+              <button
+                type="button"
+                onClick={() => setPreviewImage(null)}
+                className="absolute right-5 top-5 z-10 rounded-full border border-white/15 bg-black/25 px-3 py-2 text-xs uppercase tracking-[0.18em] text-white/68 backdrop-blur-md transition-colors hover:border-white/40 hover:text-white"
+              >
+                Close
+              </button>
+              <img
+                src={previewImage}
+                alt="AI portfolio preview"
+                className="max-h-[82vh] w-full rounded-[1.25rem] object-contain"
+              />
+            </div>
+          </div>
+        )}
+
         {route === "latelight" ? (
           <section className="py-8 md:py-12">
             <LateLight
@@ -578,13 +604,20 @@ export function App() {
                     </div>
                     <div className="grid gap-3 md:grid-cols-3">
                       {detailPage.portfolioImages.map((image, imageIndex) => (
-                        <img
+                        <button
                           key={image}
-                          src={image}
-                          alt={`AI portfolio image ${imageIndex + 1}`}
-                          className="aspect-[16/10] w-full rounded-2xl border border-white/10 object-cover"
-                          loading="lazy"
-                        />
+                          type="button"
+                          onClick={() => setPreviewImage(image)}
+                          className="group overflow-hidden rounded-2xl border border-white/10 text-left transition hover:border-white/35"
+                          aria-label={`Open AI portfolio image ${imageIndex + 1}`}
+                        >
+                          <img
+                            src={image}
+                            alt={`AI portfolio image ${imageIndex + 1}`}
+                            className="aspect-[16/10] w-full object-cover transition duration-500 group-hover:scale-[1.03]"
+                            loading="lazy"
+                          />
+                        </button>
                       ))}
                     </div>
                   </div>
