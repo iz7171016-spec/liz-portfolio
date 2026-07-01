@@ -181,7 +181,7 @@ const detailPages = {
     back: "#ai-products",
     text: "我们总在不自觉地重复既定的生活模式，习惯性跟风、产生标准化情绪。我用这支短片记录日常里的荒诞瞬间，希望始终做一个清醒的旁观者，守住自己的思考与节奏。",
     portfolioImages: aiPortfolioImages,
-    video: assetSrc("/portfolio/ai-short-film.mp4"),
+    video: assetSrc("/portfolio/ai-short-film-web.mp4"),
   },
   "ai-work": {
     number: "03 / 01",
@@ -634,6 +634,7 @@ export function App() {
                       src={detailPage.video}
                       controls
                       preload="metadata"
+                      poster={assetSrc("/portfolio/ai-short-film-poster.webp")}
                       className="aspect-video w-full rounded-2xl border border-white/10 object-cover"
                     />
                   </div>
