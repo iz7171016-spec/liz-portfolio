@@ -155,10 +155,6 @@ const detailPages = {
     text: "这里放的是我自己搭建的一条自动化链路：用 Dify 串起任务流程，再用飞书文档沉淀说明、结果和复盘，让一个想法从流程设计变成可以被打开、验证和持续优化的工作方式。",
     links: [
       {
-        label: "Open Dify 工作流",
-        href: "https://cloud.dify.ai/app/9f89122e-f894-4a38-ae09-53969d78d50d/workflow",
-      },
-      {
         label: "Open 想法落地过程",
         href: "https://xcnysi1641sk.feishu.cn/wiki/IaNHwu9LsigXFhk4Ylvcz5Binnp?from=from_copylink",
       },
@@ -321,6 +317,22 @@ export function App() {
     };
   }, []);
 
+  useEffect(() => {
+    const protectShortcuts = (event: KeyboardEvent) => {
+      const key = event.key.toLowerCase();
+      const isProtectedShortcut =
+        (event.ctrlKey || event.metaKey) &&
+        ["s", "u", "p", "i", "j", "c"].includes(key);
+
+      if (isProtectedShortcut || event.key === "F12") {
+        event.preventDefault();
+      }
+    };
+
+    window.addEventListener("keydown", protectShortcuts);
+    return () => window.removeEventListener("keydown", protectShortcuts);
+  }, []);
+
   const detailPage = detailPages[route as keyof typeof detailPages];
 
   const handleDetailBack = (
@@ -388,7 +400,11 @@ export function App() {
   }, []);
 
   return (
-    <main className="relative w-full min-h-screen overflow-x-hidden flex flex-col items-center font-sans text-white selection:bg-white/20 selection:text-white">
+    <main
+      className="relative w-full min-h-screen overflow-x-hidden flex flex-col items-center font-sans text-white selection:bg-white/20 selection:text-white"
+      onContextMenu={(event) => event.preventDefault()}
+      onDragStart={(event) => event.preventDefault()}
+    >
       <video
         className="fixed inset-0 w-full h-full object-cover z-[0]"
         src={videoSrc}
@@ -396,6 +412,8 @@ export function App() {
         loop
         muted
         playsInline
+        controlsList="nodownload noplaybackrate noremoteplayback"
+        disablePictureInPicture
         aria-hidden="true"
       />
       <div className="fixed inset-0 z-[1] bg-black/40" aria-hidden="true" />
@@ -457,6 +475,7 @@ export function App() {
               <img
                 src={assetSrc("/images/liz-photo.webp")}
                 alt="Liz"
+                draggable={false}
                 className="h-full w-full rounded-[1.25rem] object-cover"
                 onError={(event) => {
                   event.currentTarget.style.opacity = "0";
@@ -485,6 +504,7 @@ export function App() {
               <img
                 src={previewImage}
                 alt="AI portfolio preview"
+                draggable={false}
                 className="max-h-[82vh] w-full rounded-[1.25rem] object-contain"
               />
             </div>
@@ -614,6 +634,7 @@ export function App() {
                           <img
                             src={image}
                             alt={`AI portfolio image ${imageIndex + 1}`}
+                            draggable={false}
                             className="aspect-[16/10] w-full object-cover transition duration-500 group-hover:scale-[1.03]"
                             loading="lazy"
                           />
@@ -635,6 +656,8 @@ export function App() {
                       controls
                       preload="metadata"
                       poster={assetSrc("/portfolio/ai-short-film-poster.webp")}
+                      controlsList="nodownload noplaybackrate noremoteplayback"
+                      disablePictureInPicture
                       className="aspect-video w-full rounded-2xl border border-white/10 object-cover"
                     />
                   </div>
@@ -645,6 +668,7 @@ export function App() {
                     <img
                       src={detailPage.image}
                       alt="Liz personal introduction"
+                      draggable={false}
                       className="w-full rounded-3xl border border-white/12 object-cover shadow-2xl shadow-black/20"
                     />
                   )}

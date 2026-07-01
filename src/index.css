@@ -28,6 +28,8 @@ body {
   min-width: 320px;
   min-height: 100vh;
   background: #050508;
+  -webkit-user-select: none;
+  user-select: none;
 }
 
 a {
@@ -38,6 +40,9 @@ a {
 img,
 video {
   display: block;
+  -webkit-user-drag: none;
+  user-drag: none;
+  -webkit-touch-callout: none;
 }
 
 .liquid-glass {
